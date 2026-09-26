@@ -21,7 +21,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: npm
 
       - name: Bootstrap package-lock when missing
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
@@ -34,6 +33,14 @@ jobs:
             git commit -m "chore: add npm lockfile"
             git push
           fi
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Verify lockfile
+        run: test -f package-lock.json
 
       - name: Install reproducible dependencies
         run: npm ci
