@@ -87,6 +87,10 @@ BEGIN
     RAISE EXCEPTION 'EMPTY_CART';
   END IF;
 
+  IF jsonb_typeof(p_payments) <> 'array' OR jsonb_array_length(p_payments) = 0 THEN
+    RAISE EXCEPTION 'EMPTY_PAYMENT';
+  END IF;
+
   v_folio := 'TEST-' || to_char(clock_timestamp(),'YYYYMMDDHH24MISSMSUS');
   INSERT INTO sales(folio,usuario_id,estado) VALUES(v_folio,p_user,'PENDIENTE') RETURNING id INTO v_sale_id;
 
@@ -151,7 +155,11 @@ BEGIN
 END;
 $$;
 
-INSERT INTO products(id,nombre,precio_venta,costo) VALUES(1,'TEST-STOCK-1',100,50);
-INSERT INTO inventory(producto_id,stock_actual) VALUES(1,1);
+INSERT INTO products(id,nombre,precio_venta,costo) VALUES
+  (1,'TEST-STOCK-1',100,50),
+  (2,'TEST-STOCK-2',25,10);
+INSERT INTO inventory(producto_id,stock_actual) VALUES
+  (1,1),
+  (2,1);
 
 COMMIT;
