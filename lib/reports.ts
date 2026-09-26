@@ -24,6 +24,12 @@ export async function getDailySectionTotals(date = new Date()) {
   const { data, error } = await createSupabaseBrowser().from('sales').select('id,total,fecha,estado,sale_details(producto_id,cantidad,subtotal,products(nombre,categoria_id,categories(nombre)))').eq('estado', 'PAGADA').gte('fecha', start.toISOString()).lt('fecha', end.toISOString());
   if (error) throw error;
   const totals: Record<string, number> = {};
-  for (const sale of data ?? []) for (const line of sale.sale_details ?? []) { const section = line.products?.categories?.nombre ?? 'SIN SECCION'; totals[section] = (totals[section] ?? 0) + Number(line.subtotal ?? 0); }
+  for (const sale of data ?? []) {
+    for (const line of sale.sale_details ?? []) {
+      const products = line.products as { nombre?: string; categoria_id?: number; categories?: { nombre?: string } | null } | null;
+      const section = products?.categories?.nombre ?? 'SIN SECCION';
+      totals[section] = (totals[section] ?? 0) + Number(line.subtotal ?? 0);
+    }
+  }
   return totals;
 }
