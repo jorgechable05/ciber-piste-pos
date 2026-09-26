@@ -3,19 +3,28 @@
 import { FormEvent, useState } from 'react';
 import { createClient } from '../../lib/supabase/client';
 
+export const dynamic = 'force-dynamic';
+
 export default function LoginPage() {
-  const supabase = createClient();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
   async function submit(e: FormEvent) {
-    e.preventDefault(); setLoading(true); setError('');
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) setError(error.message);
-    else window.location.href = '/';
-    setLoading(false);
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+    try {
+      const supabase = createClient();
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) setError(error.message);
+      else window.location.href = '/';
+    } catch {
+      setError('No se pudo conectar con el servicio de autenticación.');
+    } finally {
+      setLoading(false);
+    }
   }
 
   return <main className="auth-shell"><form className="auth-card" onSubmit={submit}>
