@@ -8,6 +8,7 @@ export PGPASSWORD="${PGPASSWORD:-postgres}"
 export PGDATABASE="${PGDATABASE:-ciber_piste_pos_test}"
 
 psql -v ON_ERROR_STOP=1 -f tests/postgres/concurrency_schema.sql
+psql -v ON_ERROR_STOP=1 -c 'select 1 as postgres_ready;'
 
 USER_A='11111111-1111-1111-1111-111111111111'
 USER_B='22222222-2222-2222-2222-222222222222'
@@ -47,29 +48,19 @@ else
   exit 1
 fi
 
-python3 - <<'PY'
-import os, subprocess, sys
+STOCK=$(psql -At -v ON_ERROR_STOP=1 -c "select case when stock_actual = 0 then '0' else stock_actual::text end from inventory where producto_id=1")
+SALES=$(psql -At -v ON_ERROR_STOP=1 -c "select count(*) from sales")
+MOVES=$(psql -At -v ON_ERROR_STOP=1 -c "select count(*) from inventory_movements where producto_id=1 and tipo='VENTA'")
+PAYMENTS=$(psql -At -v ON_ERROR_STOP=1 -c "select count(*) from sale_payments")
 
-env=os.environ.copy()
-def q(sql):
-    return subprocess.check_output(['psql','-At','-v','ON_ERROR_STOP=1','-c',sql], env=env, text=True).strip()
+printf '\n--- INTEGRIDAD ---\n'
+printf 'stock=%s\nsales=%s\ninventory_sale_movements=%s\npayments=%s\n' "$STOCK" "$SALES" "$MOVES" "$PAYMENTS"
 
-stock=q("select stock_actual from inventory where producto_id=1")
-sales=q("select count(*) from sales")
-moves=q("select count(*) from inventory_movements where producto_id=1 and tipo='VENTA'")
-payments=q("select count(*) from sale_payments")
-
-print(f"stock={stock}")
-print(f"sales={sales}")
-print(f"inventory_sale_movements={moves}")
-print(f"payments={payments}")
-
-assert stock == '0', f'expected stock 0, got {stock}'
-assert sales == '1', f'expected 1 sale, got {sales}'
-assert moves == '1', f'expected 1 inventory movement, got {moves}'
-assert payments == '1', f'expected 1 payment, got {payments}'
-print('PASS: inventory, sale, movement and payment counts are consistent.')
-PY
+[[ "$STOCK" == '0' ]] || { echo 'FAIL: expected stock 0'; exit 1; }
+[[ "$SALES" == '1' ]] || { echo 'FAIL: expected 1 sale'; exit 1; }
+[[ "$MOVES" == '1' ]] || { echo 'FAIL: expected 1 inventory movement'; exit 1; }
+[[ "$PAYMENTS" == '1' ]] || { echo 'FAIL: expected 1 payment'; exit 1; }
+echo 'PASS: inventory, sale, movement and payment counts are consistent.'
 
 # Idempotency: the same request ID must return the same sale and create no second sale.
 psql -v ON_ERROR_STOP=1 <<'SQL'
