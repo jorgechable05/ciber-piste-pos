@@ -7,10 +7,15 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      # Public build-time placeholders only. Production values belong in Vercel.
+      NEXT_PUBLIC_SUPABASE_URL: https://build-placeholder.supabase.co
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_build_placeholder
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+          cache: npm
       - run: npm install
       - run: npm run build
