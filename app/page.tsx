@@ -1,33 +1,24 @@
 'use client';
 
-import { useState } from 'react';
-import { Barcode, CreditCard, Package, ShoppingCart, Wallet, LayoutDashboard, Settings, LogOut } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Barcode, CreditCard, Package, ShoppingCart, Wallet, LayoutDashboard, Settings, LogOut, Search } from 'lucide-react';
+import { createSupabaseBrowser } from '../lib/supabase-browser';
+import { createSale, findProducts } from '../lib/pos';
+import type { PosItem, PosPayment } from '../lib/pos-types';
 
 const sections = ['PALETAS NESTLÉ','PAPELERÍA','BISUTERÍA','REFRESCOS','RTC','SERVICIOS'];
 
+type Product = { id:number; nombre:string; codigo_barras:string|null; precio_venta:number; activo:boolean };
+
 export default function Home() {
   const [active, setActive] = useState('POS');
-  return <main className="pos-shell">
-    <aside className="sidebar">
-      <div className="brand">CIBER <span>PISTE</span><small>POS</small></div>
-      <nav>{[['Dashboard',LayoutDashboard],['POS',ShoppingCart],['Inventario',Package],['Caja',Wallet],['Configuración',Settings]].map(([name,Icon])=><button key={String(name)} className={active===name?'nav active':'nav'} onClick={()=>setActive(String(name))}><Icon size={20}/>{String(name)}</button>)}</nav>
-      <button className="nav logout"><LogOut size={20}/>Cerrar sesión</button>
-    </aside>
-    <section className="workspace">
-      <header className="topbar"><div><strong>{active}</strong><span className="muted"> · CIBER PISTE POS</span></div><div className="status">● Sistema en línea</div></header>
-      <div className="pos-main">
-        <div className="page-title"><div><h1>{active}</h1><p className="muted">Punto de venta independiente de THOP.</p></div><button className="primary"><ShoppingCart size={18}/> Nueva venta</button></div>
-        <section className="metric-grid">
-          <div className="card"><div className="muted">Ventas de hoy</div><div className="kpi">$0.00</div></div>
-          <div className="card"><div className="muted">Tickets</div><div className="kpi">0</div></div>
-          <div className="card"><div className="muted">Inventario bajo</div><div className="kpi">0</div></div>
-          <div className="card"><div className="muted">Pedidos sugeridos</div><div className="kpi">0</div></div>
-        </section>
-        <section className="sale-layout">
-          <div className="card sale-panel"><div className="scan-row"><Barcode size={24}/><input autoFocus placeholder="Escanea un código de barras o busca un producto..."/><button className="primary">Buscar</button></div><div className="section-grid">{sections.map(s=><button className="section-btn" key={s}>{s}</button>)}</div><div className="empty"><ShoppingCart size={42}/><h3>Carrito vacío</h3><p className="muted">Escanea un producto para comenzar la venta.</p></div></div>
-          <div className="card checkout"><h2>Resumen</h2><div className="summary"><span>Subtotal</span><strong>$0.00</strong></div><div className="summary"><span>Descuento</span><strong>$0.00</strong></div><div className="total"><span>Total</span><strong>$0.00</strong></div><button className="pay"><CreditCard size={20}/> Cobrar</button></div>
-        </section>
-      </div>
-    </section>
-  </main>;
+  const [term,setTerm]=useState(''); const [products,setProducts]=useState<Product[]>([]); const [cart,setCart]=useState<PosItem[]>([]); const [error,setError]=useState(''); const [busy,setBusy]=useState(false); const [userEmail,setUserEmail]=useState('');
+  const supabase=createSupabaseBrowser();
+  useEffect(()=>{supabase.auth.getUser().then(({data})=>setUserEmail(data.user?.email??''));},[]);
+  async function search(){setError('');try{setProducts(await findProducts(term));}catch(e){setError(e instanceof Error?e.message:'No se pudo buscar');}}
+  function add(p:Product){setCart(c=>{const existing=c.find(x=>x.producto_id===p.id);if(existing)return c.map(x=>x.producto_id===p.id?{...x,cantidad:x.cantidad+1}:x);return [...c,{producto_id:p.id,nombre:p.nombre,codigo_barras:p.codigo_barras,precio_venta:Number(p.precio_venta),cantidad:1,descuento:0}]});setProducts([]);setTerm('');}
+  const total=cart.reduce((s,x)=>s+x.precio_venta*x.cantidad-x.descuento,0);
+  async function checkout(){if(!cart.length)return;setBusy(true);setError('');try{const payments:PosPayment[]=[{metodo:'EFECTIVO',monto:total}];await createSale(cart,payments,null);setCart([]);alert('Venta registrada correctamente');}catch(e){setError(e instanceof Error?e.message:'No se pudo registrar la venta');}finally{setBusy(false);}}
+  async function logout(){await supabase.auth.signOut();window.location.href='/login';}
+  return <main className="pos-shell"><aside className="sidebar"><div className="brand">CIBER <span>PISTE</span><small>POS</small></div><nav>{[['Dashboard',LayoutDashboard],['POS',ShoppingCart],['Inventario',Package],['Caja',Wallet],['Configuración',Settings]].map(([name,Icon])=><button key={String(name)} className={active===name?'nav active':'nav'} onClick={()=>setActive(String(name))}><Icon size={20}/>{String(name)}</button>)}</nav><button className="nav logout" onClick={logout}><LogOut size={20}/>Cerrar sesión</button></aside><section className="workspace"><header className="topbar"><div><strong>{active}</strong><span className="muted"> · {userEmail}</span></div><div className="status">● Sistema en línea</div></header><div className="pos-main"><div className="page-title"><div><h1>{active}</h1><p className="muted">Punto de venta independiente de THOP.</p></div><button className="primary"><ShoppingCart size={18}/> Nueva venta</button></div><section className="metric-grid"><div className="card"><div className="muted">Ventas de hoy</div><div className="kpi">$0.00</div></div><div className="card"><div className="muted">Tickets</div><div className="kpi">0</div></div><div className="card"><div className="muted">Inventario bajo</div><div className="kpi">0</div></div><div className="card"><div className="muted">Pedidos sugeridos</div><div className="kpi">0</div></div></section><section className="sale-layout"><div className="card sale-panel"><div className="scan-row"><Barcode size={24}/><input autoFocus value={term} onChange={e=>setTerm(e.target.value)} onKeyDown={e=>{if(e.key==='Enter')search()}} placeholder="Escanea un código de barras o busca un producto..."/><button className="primary" onClick={search}><Search size={18}/> Buscar</button></div>{error&&<div className="error">{error}</div>}{products.length>0&&<div className="product-results">{products.map(p=><button className="product-row" key={p.id} onClick={()=>add(p)}><span>{p.nombre}<small>{p.codigo_barras||'Sin código'}</small></span><strong>${Number(p.precio_venta).toFixed(2)}</strong></button>)}</div>}<div className="section-grid">{sections.map(s=><button className="section-btn" key={s}>{s}</button>)}</div><div className="cart-list">{cart.map(x=><div className="cart-row" key={x.producto_id}><span>{x.nombre}<small>{x.cantidad} × ${x.precio_venta.toFixed(2)}</small></span><strong>${(x.cantidad*x.precio_venta-x.descuento).toFixed(2)}</strong></div>)}{!cart.length&&<div className="empty"><ShoppingCart size={42}/><h3>Carrito vacío</h3><p className="muted">Escanea un producto para comenzar la venta.</p></div>}</div></div><div className="card checkout"><h2>Resumen</h2><div className="summary"><span>Subtotal</span><strong>${total.toFixed(2)}</strong></div><div className="summary"><span>Descuento</span><strong>$0.00</strong></div><div className="total"><span>Total</span><strong>${total.toFixed(2)}</strong></div><button className="pay" disabled={!cart.length||busy} onClick={checkout}><CreditCard size={20}/> {busy?'Procesando…':'Cobrar en efectivo'}</button></div></section></div></section></main>;
 }
