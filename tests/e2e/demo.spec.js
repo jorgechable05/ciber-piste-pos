@@ -19,14 +19,13 @@ test.describe('CIBER PISTE POS - DEMO aislada', () => {
     await page.getByRole('button', { name: /Abrir caja de prueba/i }).click();
     await expect(page.getByText(/Caja abierta/i)).toBeVisible();
 
-    // Regresar al POS después de abrir la caja.
     await page.getByRole('button', { name: /^POS/ }).click();
     await expect(page.getByText('Listo para cobrar')).toBeVisible();
 
     const search = page.getByPlaceholder('Escanea o busca por nombre o código...');
     await search.fill('Libreta profesional Norma');
     await page.getByRole('button', { name: /Libreta profesional Norma/i }).click();
-    await expect(page.getByText('Libreta profesional Norma')).toBeVisible();
+    await expect(page.getByRole('button', { name: /Cobrar \$92\.00/i })).toBeVisible();
 
     await page.getByRole('button', { name: /Cobrar \$92\.00/i }).click();
     await expect(page.getByText('¿Cómo paga el cliente?')).toBeVisible();
