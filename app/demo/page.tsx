@@ -1,198 +1,59 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import {
-  Barcode,
-  CheckCircle2,
-  CreditCard,
-  LayoutDashboard,
-  LogIn,
-  Package,
-  Printer,
-  RotateCcw,
-  Search,
-  ShoppingCart,
-  Wallet,
-  X,
-} from 'lucide-react';
+import { Barcode, CheckCircle2, ChevronRight, CreditCard, LayoutDashboard, LogIn, Package, Plus, Printer, RotateCcw, Search, ShoppingCart, Sparkles, Wallet, X } from 'lucide-react';
 
-type Product = {
-  id: number;
-  name: string;
-  code: string;
-  section: string;
-  price: number;
-  stock: number;
-};
+type Product={id:number;name:string;code:string;section:string;price:number;stock:number};
+type CartItem=Product&{quantity:number};
+type Method='EFECTIVO'|'TARJETA'|'TRANSFERENCIA';
+type Payment={method:Method;amount:string};
+type Ticket={folio:string;total:number;items:CartItem[];payments:Payment[];change:number};
 
-type CartItem = Product & { quantity: number };
-type Method = 'EFECTIVO' | 'TARJETA' | 'TRANSFERENCIA';
-type Payment = { method: Method; amount: string };
-
-const DEMO_PRODUCTS: Product[] = [
-  { id: 1, name: 'Libreta profesional Norma', code: '750123456001', section: 'PAPELERÍA', price: 92, stock: 8 },
-  { id: 2, name: 'Pluma azul punto fino', code: '750123456002', section: 'PAPELERÍA', price: 12, stock: 25 },
-  { id: 3, name: 'Paleta Nestlé', code: '750123456003', section: 'PALETAS NESTLÉ', price: 10, stock: 30 },
-  { id: 4, name: 'Refresco 600 ml', code: '750123456004', section: 'REFRESCOS', price: 22, stock: 18 },
-  { id: 5, name: 'Pulsera juvenil', code: '750123456005', section: 'BISUTERÍA', price: 35, stock: 6 },
-  { id: 6, name: 'Impresión B/N carta', code: '750123456006', section: 'SERVICIOS', price: 2, stock: 999 },
+const PRODUCTS:Product[]=[
+{id:1,name:'Libreta profesional Norma',code:'750123456001',section:'PAPELERÍA',price:92,stock:8},
+{id:2,name:'Pluma azul punto fino',code:'750123456002',section:'PAPELERÍA',price:12,stock:25},
+{id:3,name:'Paleta Nestlé',code:'750123456003',section:'PALETAS NESTLÉ',price:10,stock:30},
+{id:4,name:'Refresco 600 ml',code:'750123456004',section:'REFRESCOS',price:22,stock:18},
+{id:5,name:'Pulsera juvenil',code:'750123456005',section:'BISUTERÍA',price:35,stock:6},
+{id:6,name:'Impresión B/N carta',code:'750123456006',section:'SERVICIOS',price:2,stock:999},
 ];
+const SECTIONS=['TODOS','PALETAS NESTLÉ','PAPELERÍA','BISUTERÍA','REFRESCOS','RTC','SERVICIOS'];
+const money=(n:number)=>`$${n.toFixed(2)}`;
 
-const sections = ['TODOS', 'PALETAS NESTLÉ', 'PAPELERÍA', 'BISUTERÍA', 'REFRESCOS', 'RTC', 'SERVICIOS'];
-
-export default function DemoPage() {
-  const [loggedIn, setLoggedIn] = useState(false);
-  const [active, setActive] = useState<'Dashboard' | 'POS' | 'Inventario' | 'Caja' | 'Devoluciones'>('POS');
-  const [cashOpen, setCashOpen] = useState(false);
-  const [opening, setOpening] = useState('500');
-  const [term, setTerm] = useState('');
-  const [section, setSection] = useState('TODOS');
-  const [cart, setCart] = useState<CartItem[]>([]);
-  const [showPayment, setShowPayment] = useState(false);
-  const [payments, setPayments] = useState<Payment[]>([{ method: 'EFECTIVO', amount: '' }]);
-  const [ticket, setTicket] = useState<{ folio: string; total: number; items: CartItem[] } | null>(null);
-  const [lastReturn, setLastReturn] = useState('');
-  const [closed, setClosed] = useState(false);
-  const [demoSales, setDemoSales] = useState(1248.5);
-  const [demoTickets, setDemoTickets] = useState(18);
-
-  const filtered = useMemo(() => DEMO_PRODUCTS.filter((p) =>
-    (section === 'TODOS' || p.section === section) &&
-    `${p.name} ${p.code}`.toLowerCase().includes(term.toLowerCase())
-  ), [term, section]);
-
-  const total = useMemo(() => cart.reduce((sum, item) => sum + item.price * item.quantity, 0), [cart]);
-  const paid = useMemo(() => payments.reduce((sum, p) => sum + (Number(p.amount) || 0), 0), [payments]);
-  const cashPaid = useMemo(() => payments.filter((p) => p.method === 'EFECTIVO').reduce((sum, p) => sum + (Number(p.amount) || 0), 0), [payments]);
-  const change = Math.max(0, cashPaid - total);
-
-  function addProduct(product: Product) {
-    setCart((current) => {
-      const existing = current.find((item) => item.id === product.id);
-      return existing
-        ? current.map((item) => item.id === product.id ? { ...item, quantity: item.quantity + 1 } : item)
-        : [...current, { ...product, quantity: 1 }];
-    });
-  }
-
-  function removeProduct(id: number) {
-    setCart((current) => current.filter((item) => item.id !== id));
-  }
-
-  function confirmDemoSale() {
-    if (!cart.length || paid < total) return;
-    const folio = `DEMO-${String(demoTickets + 1).padStart(5, '0')}`;
-    setDemoSales((value) => value + total);
-    setDemoTickets((value) => value + 1);
-    setTicket({ folio, total, items: cart });
-    setCart([]);
-    setPayments([{ method: 'EFECTIVO', amount: '' }]);
-    setShowPayment(false);
-  }
-
-  function printTicket() {
-    if (!ticket) return;
-    const popup = window.open('', '_blank', 'width=420,height=720');
-    if (!popup) return;
-    popup.document.write(`<html><head><title>${ticket.folio}</title><style>body{font-family:monospace;width:280px;margin:20px auto;font-size:12px}.center{text-align:center}.row{display:flex;justify-content:space-between}hr{border:0;border-top:1px dashed #000}</style></head><body><h2 class="center">CIBER PISTE</h2><div class="center">MODO DEMO · SIN VENTA REAL</div><hr>${ticket.items.map((i) => `<div>${i.quantity} x ${i.name}</div><div class="row"><span>$${i.price.toFixed(2)}</span><strong>$${(i.price * i.quantity).toFixed(2)}</strong></div>`).join('')}<hr><div class="row"><strong>TOTAL</strong><strong>$${ticket.total.toFixed(2)}</strong></div><p class="center">${ticket.folio}</p><script>window.onload=()=>window.print()</script></body></html>`);
-    popup.document.close();
-  }
-
-  if (!loggedIn) {
-    return (
-      <main className="auth-shell" style={{ minHeight: '100vh', background: 'radial-gradient(circle at top, #fff7cc, #f6f7fb 45%)' }}>
-        <div className="auth-card" style={{ maxWidth: 460 }}>
-          <div className="brand-mark" style={{ background: '#111827', margin: '0 auto' }}>CP</div>
-          <div style={{ textAlign: 'center' }}>
-            <div style={{ display: 'inline-flex', padding: '6px 10px', borderRadius: 999, background: '#fef3c7', color: '#92400e', fontWeight: 800, fontSize: 12 }}>MODO DEMO · SIN BASE REAL</div>
-            <h1 style={{ margin: '14px 0 6px' }}>CIBER PISTE POS</h1>
-            <p className="muted">Explora el sistema y prueba el flujo completo sin afectar ventas, inventario ni caja reales.</p>
-          </div>
-          <label>Usuario de demostración<input value="demo@ciberpiste.local" readOnly /></label>
-          <label>Contraseña de demostración<input value="demo1234" readOnly /></label>
-          <button className="primary" onClick={() => setLoggedIn(true)}><LogIn size={18} /> Entrar a la demostración</button>
-          <p className="muted" style={{ textAlign: 'center', margin: 0 }}>Todos los datos de esta pantalla viven únicamente en el navegador.</p>
-        </div>
-      </main>
-    );
-  }
-
-  return (
-    <main className="pos-shell">
-      <aside className="sidebar">
-        <div className="brand">CIBER <span>PISTE</span><small>POS · DEMO</small></div>
-        <div style={{ margin: '0 10px', padding: '8px 10px', borderRadius: 10, background: '#92400e', color: '#fff', fontSize: 11, fontWeight: 800, textAlign: 'center' }}>ENTORNO DE PRUEBA</div>
-        <nav>
-          {([
-            ['Dashboard', LayoutDashboard],
-            ['POS', ShoppingCart],
-            ['Inventario', Package],
-            ['Caja', Wallet],
-            ['Devoluciones', RotateCcw],
-          ] as const).map(([name, Icon]) => (
-            <button key={name} className={active === name ? 'nav active' : 'nav'} onClick={() => setActive(name)}><Icon size={20} />{name}</button>
-          ))}
-        </nav>
-        <button className="nav logout" onClick={() => setLoggedIn(false)}><X size={20} />Salir demo</button>
-      </aside>
-
-      <section className="workspace">
-        <header className="topbar">
-          <div><strong>{active}</strong><span className="muted"> · demo@ciberpiste.local</span></div>
-          <div className="status">● DEMO AISLADA</div>
-        </header>
-
-        <div className="pos-main">
-          {active === 'Dashboard' && (
-            <>
-              <div className="page-title"><div><h1>¡Bienvenido a CIBER PISTE POS!</h1><p className="muted">Panel de demostración para conocer el sistema antes de producción.</p></div><div className="card" style={{ padding: '10px 14px' }}>Caja: <strong>{cashOpen ? 'ABIERTA' : 'CERRADA'}</strong></div></div>
-              <section className="metric-grid">
-                <div className="card"><div className="muted">Ventas de hoy</div><div className="kpi">${demoSales.toFixed(2)}</div></div>
-                <div className="card"><div className="muted">Tickets</div><div className="kpi">{demoTickets}</div></div>
-                <div className="card"><div className="muted">Inventario bajo</div><div className="kpi">3</div></div>
-                <div className="card"><div className="muted">Pedidos sugeridos</div><div className="kpi">2</div></div>
-              </section>
-              <div className="card" style={{ marginTop: 18 }}><h2>Flujo para mostrar al cliente</h2><p className="muted">Login → caja → venta → pago sencillo/mixto → cambio → ticket → devolución → cierre.</p></div>
-            </>
-          )}
-
-          {active === 'Caja' && (
-            <div className="card" style={{ maxWidth: 650 }}>
-              <h1>Caja de demostración</h1>
-              <p className="muted">Esta caja es simulada. No crea sesiones en Supabase.</p>
-              {!cashOpen ? <><label>Fondo inicial<input type="number" value={opening} onChange={(e) => setOpening(e.target.value)} /></label><button className="primary" style={{ marginTop: 14 }} onClick={() => setCashOpen(true)}><Wallet size={18} /> Abrir caja de prueba</button></> : <><div className="card" style={{ marginTop: 14, background: '#f0fdf4' }}><CheckCircle2 size={20} /> Caja abierta · Fondo ${Number(opening).toFixed(2)}</div><button className="nav" style={{ marginTop: 12 }} onClick={() => setClosed(true)}>{closed ? 'Cierre realizado' : 'Realizar cierre de prueba'}</button></>}
-            </div>
-          )}
-
-          {active === 'Inventario' && (
-            <><div className="page-title"><div><h1>Inventario demo</h1><p className="muted">Productos ficticios para practicar búsqueda y venta.</p></div></div><div className="card"><div className="scan-row"><Search size={22} /><input value={term} onChange={(e) => setTerm(e.target.value)} placeholder="Buscar producto o código..." /></div>{DEMO_PRODUCTS.map((p) => <div className="cart-row" key={p.id}><span><strong>{p.name}</strong><small>{p.section} · Código {p.code}</small></span><strong>${p.price.toFixed(2)} · Stock {p.stock}</strong></div>)}</div></>
-          )}
-
-          {active === 'Devoluciones' && (
-            <div className="card" style={{ maxWidth: 700 }}><h1>Devoluciones demo</h1><p className="muted">Prueba el comportamiento de devolución sin modificar ventas reales.</p><div className="scan-row"><Search size={22} /><input placeholder="Folio de prueba, por ejemplo DEMO-00019" /></div><button className="primary" onClick={() => setLastReturn('DEV-DEMO-0001 · devolución simulada correctamente')}><RotateCcw size={18} /> Simular devolución</button>{lastReturn && <div className="card" style={{ marginTop: 16, background: '#f0fdf4' }}><CheckCircle2 size={18} /> {lastReturn}</div>}</div>
-          )}
-
-          {active === 'POS' && (
-            <>
-              <div className="page-title"><div><h1>Punto de venta</h1><p className="muted">Prueba el escáner, carrito, pagos, cambio y ticket.</p></div><div className="card" style={{ padding: '10px 14px' }}>Caja: <strong>{cashOpen ? 'ABIERTA' : 'ABRE CAJA'}</strong></div></div>
-              {!cashOpen && <div className="card" style={{ marginBottom: 16, background: '#fffbeb' }}>Abre primero la <button className="nav" style={{ display: 'inline-flex', width: 'auto', padding: '4px 8px', color: '#92400e' }} onClick={() => setActive('Caja')}>caja de prueba</button>.</div>}
-              <section className="sale-layout">
-                <div className="card sale-panel">
-                  <div className="scan-row"><Barcode size={24} /><input autoFocus value={term} onChange={(e) => setTerm(e.target.value)} placeholder="Escanea o busca un producto demo..." /><button className="primary" onClick={() => undefined}><Search size={18} /> Buscar</button></div>
-                  <div className="section-grid">{sections.map((s) => <button className="section-btn" key={s} onClick={() => setSection(s)} style={section === s ? { borderColor: '#111827', background: '#f3f4f6' } : undefined}>{s}</button>)}</div>
-                  <div style={{ display: 'grid', gap: 8, marginTop: 14 }}>{filtered.map((p) => <button className="product-row" key={p.id} onClick={() => addProduct(p)} style={{ display: 'flex', justifyContent: 'space-between', width: '100%', padding: 14, border: '1px solid #e5e7eb', borderRadius: 10, background: '#fff', textAlign: 'left' }}><span><strong>{p.name}</strong><small style={{ display: 'block', color: '#6b7280' }}>{p.section} · {p.code}</small></span><strong>${p.price.toFixed(2)}</strong></button>)}</div>
-                  <div className="cart-list" style={{ marginTop: 18 }}>{cart.map((item) => <div className="cart-row" key={item.id}><span><strong>{item.name}</strong><small>{item.quantity} × ${item.price.toFixed(2)}</small></span><span><strong>${(item.quantity * item.price).toFixed(2)}</strong><button className="nav" style={{ width: 'auto', padding: 4, display: 'inline-flex', marginLeft: 8 }} onClick={() => removeProduct(item.id)}>×</button></span></div>)}{!cart.length && <div className="empty"><ShoppingCart size={42} /><h3>Carrito de prueba vacío</h3><p className="muted">Agrega productos para comenzar.</p></div>}</div>
-                </div>
-                <div className="card checkout"><h2>Resumen</h2><div className="summary"><span>Total</span><strong>${total.toFixed(2)}</strong></div><button className="pay" disabled={!cashOpen || !cart.length} onClick={() => { setPayments([{ method: 'EFECTIVO', amount: total.toFixed(2) }]); setShowPayment(true); }}><CreditCard size={20} /> Cobrar</button></div>
-              </section>
-            </>
-          )}
-        </div>
-      </section>
-
-      {showPayment && <div className="auth-shell" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.5)' }}><div className="auth-card"><h2>Cobro de demostración · ${total.toFixed(2)}</h2>{payments.map((p, index) => <div key={index} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: 8 }}><select value={p.method} onChange={(e) => setPayments((ps) => ps.map((x, i) => i === index ? { ...x, method: e.target.value as Method } : x))}><option>EFECTIVO</option><option>TARJETA</option><option>TRANSFERENCIA</option></select><input type="number" value={p.amount} onChange={(e) => setPayments((ps) => ps.map((x, i) => i === index ? { ...x, amount: e.target.value } : x))} placeholder="Importe" />{payments.length > 1 && <button className="nav" onClick={() => setPayments((ps) => ps.filter((_, i) => i !== index))}>×</button>}</div>)}<button className="nav" onClick={() => setPayments((ps) => [...ps, { method: 'TARJETA', amount: '' }])}>+ Agregar método · probar pago mixto</button><div className="total"><span>Pagado</span><strong>${paid.toFixed(2)}</strong></div>{cashPaid > 0 && <div className="total"><span>Cambio</span><strong>${change.toFixed(2)}</strong></div>}<button className="primary" disabled={paid < total} onClick={confirmDemoSale}><CheckCircle2 size={18} /> Confirmar cobro demo</button><button className="nav" onClick={() => setShowPayment(false)}>Cancelar</button></div></div>}
-
-      {ticket && <div className="auth-shell" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.5)' }}><div className="auth-card"><h2>Ticket {ticket.folio}</h2><div style={{ background: '#f8fafc', padding: 14, borderRadius: 12, fontFamily: 'monospace' }}>{ticket.items.map((item) => <div className="row" key={item.id} style={{ display: 'flex', justifyContent: 'space-between' }}><span>{item.quantity} × {item.name}</span><strong>${(item.quantity * item.price).toFixed(2)}</strong></div>)}<hr /><div className="row" style={{ display: 'flex', justifyContent: 'space-between' }}><strong>TOTAL</strong><strong>${ticket.total.toFixed(2)}</strong></div></div><div style={{ display: 'flex', gap: 8 }}><button className="primary" onClick={printTicket}><Printer size={18} /> Imprimir</button><button className="nav" onClick={() => setTicket(null)}>Cerrar</button></div></div></div>}
-    </main>
-  );
+export default function DemoPage(){
+ const [logged,setLogged]=useState(false); const [active,setActive]=useState<'POS'|'Dashboard'|'Inventario'|'Caja'|'Devoluciones'>('POS');
+ const [cashOpen,setCashOpen]=useState(false); const [opening,setOpening]=useState('500'); const [closed,setClosed]=useState(false);
+ const [term,setTerm]=useState(''); const [section,setSection]=useState('TODOS'); const [cart,setCart]=useState<CartItem[]>([]);
+ const [payments,setPayments]=useState<Payment[]>([{method:'EFECTIVO',amount:''}]); const [payOpen,setPayOpen]=useState(false);
+ const [tickets,setTickets]=useState<Ticket[]>([]); const [returnMessage,setReturnMessage]=useState('');
+ const filtered=useMemo(()=>PRODUCTS.filter(p=>(section==='TODOS'||p.section===section)&&`${p.name} ${p.code}`.toLowerCase().includes(term.toLowerCase())),[term,section]);
+ const total=useMemo(()=>cart.reduce((s,i)=>s+i.price*i.quantity,0),[cart]);
+ const paid=useMemo(()=>payments.reduce((s,p)=>s+(Number(p.amount)||0),0),[payments]);
+ const cashPaid=useMemo(()=>payments.filter(p=>p.method==='EFECTIVO').reduce((s,p)=>s+(Number(p.amount)||0),0),[payments]);
+ const change=Math.max(0,cashPaid-total); const mixed=payments.filter(p=>Number(p.amount)>0).length>1;
+ const add=(p:Product)=>setCart(c=>c.some(i=>i.id===p.id)?c.map(i=>i.id===p.id?{...i,quantity:i.quantity+1}:i):[...c,{...p,quantity:1}]);
+ const remove=(id:number)=>setCart(c=>c.filter(i=>i.id!==id));
+ const setPayment=(idx:number,key:'method'|'amount',value:string)=>setPayments(ps=>ps.map((p,i)=>i===idx?{...p,[key]:value}:p));
+ const addPayment=()=>setPayments(ps=>[...ps,{method:ps.some(p=>p.method==='EFECTIVO')?'TARJETA':'EFECTIVO',amount:''}]);
+ const confirm=()=>{if(!cart.length||paid<total)return;const t:Ticket={folio:`DEMO-${String(tickets.length+1).padStart(5,'0')}`,total,items:cart,payments,change};setTickets(ts=>[t,...ts]);setCart([]);setPayments([{method:'EFECTIVO',amount:''}]);setPayOpen(false);};
+ const print=(t:Ticket)=>{const w=window.open('','_blank','width=420,height=720');if(!w)return;w.document.write(`<html><head><title>${t.folio}</title><style>body{font:12px monospace;width:280px;margin:20px auto}.c{text-align:center}.r{display:flex;justify-content:space-between}hr{border:0;border-top:1px dashed #777}</style></head><body><h2 class="c">CIBER PISTE</h2><div class="c">MODO DEMO · SIN VENTA REAL</div><hr>${t.items.map(i=>`<div>${i.quantity} × ${i.name}</div><div class="r"><span>${money(i.price)}</span><b>${money(i.price*i.quantity)}</b></div>`).join('')}<hr><div class="r"><b>TOTAL</b><b>${money(t.total)}</b></div><div class="c">${t.folio}</div><script>window.onload=()=>window.print()</script></body></html>`);w.document.close();};
+ if(!logged)return <main className="demo-login"><div className="login-card"><div className="demo-badge"><Sparkles size={14}/> EXPERIENCIA DEMO AISLADA</div><div className="logo">CP</div><h1>CIBER PISTE <span>POS</span></h1><p>Conoce el punto de venta antes de producción. Todo lo que hagas aquí es ficticio y vive únicamente en esta demostración.</p><div className="login-fields"><label>Usuario<input value="demo@ciberpiste.local" readOnly/></label><label>Contraseña<input value="demo1234" readOnly/></label></div><button className="primary big" onClick={()=>setLogged(true)}><LogIn size={19}/> Entrar a la experiencia</button><small>🔒 Sin conexión a ventas, inventario ni caja reales.</small></div><style jsx>{styles}</style></main>;
+ return <main className="demo-app"><aside className="sidebar"><div className="brand"><div className="brand-icon">CP</div><div><b>CIBER PISTE</b><small>POS · DEMO</small></div></div><div className="demo-pill">● ENTORNO DE PRUEBA</div><nav>{([['Dashboard',LayoutDashboard],['POS',ShoppingCart],['Inventario',Package],['Caja',Wallet],['Devoluciones',RotateCcw]] as const).map(([name,Icon])=><button className={active===name?'nav active':'nav'} key={name} onClick={()=>setActive(name)}><Icon size={18}/>{name}<ChevronRight size={15} className="nav-arrow"/></button>)}</nav><div className="sidebar-foot"><div className="cash-mini"><span>Caja</span><b>{cashOpen?'ABIERTA':'CERRADA'}</b></div><button className="nav logout" onClick={()=>setLogged(false)}><X size={18}/>Salir de demo</button></div></aside>
+ <section className="content"><header className="topbar"><div><span className="eyebrow">CIBER PISTE POS</span><h2>{active==='POS'?'Punto de venta':active}</h2></div><div className="top-actions"><span className="safe"><CheckCircle2 size={16}/> DEMO AISLADA</span><span className="user-chip">demo@ciberpiste.local</span></div></header><div className="main">
+ {active==='Dashboard'&&<Dashboard tickets={tickets} cashOpen={cashOpen} onStart={()=>setActive('Caja')}/>} 
+ {active==='Caja'&&<div className="single-card"><div className="hero-icon"><Wallet/></div><span className="eyebrow">OPERACIÓN</span><h1>{cashOpen?'Caja lista para vender':'Abre tu caja demo'}</h1><p>Practica apertura y cierre sin crear ninguna sesión en Supabase.</p>{!cashOpen?<><label>Fondo inicial<input type="number" value={opening} onChange={e=>setOpening(e.target.value)}/></label><button className="primary" onClick={()=>{setCashOpen(true);setClosed(false)}}><Wallet size={18}/> Abrir caja de prueba</button></>:<><div className="success-box"><CheckCircle2/> Caja abierta · fondo {money(Number(opening)||0)}</div><button className="secondary" onClick={()=>setClosed(true)}>{closed?'✓ Cierre realizado':'Realizar cierre de prueba'}</button></>}</div>}
+ {active==='Inventario'&&<Inventory term={term} setTerm={setTerm}/>} 
+ {active==='Devoluciones'&&<div className="single-card"><div className="hero-icon"><RotateCcw/></div><span className="eyebrow">POSTVENTA</span><h1>Devoluciones demo</h1><p>Prueba el flujo de devolución con folios DEMO, sin afectar ventas reales.</p><div className="search-box"><Search size={18}/><input placeholder="Busca un folio, por ejemplo DEMO-00001"/></div><button className="primary" onClick={()=>setReturnMessage('DEV-DEMO-0001 · devolución simulada correctamente')}><RotateCcw size={18}/> Simular devolución</button>{returnMessage&&<div className="success-box"><CheckCircle2/> {returnMessage}</div>}</div>}
+ {active==='POS'&&<><div className="welcome"><div><span className="eyebrow">VENTA DEMO</span><h1>Listo para cobrar</h1><p>Busca, agrega, cobra y genera tu ticket en segundos.</p></div><button className="cash-state" onClick={()=>setActive('Caja')}><Wallet size={17}/> Caja <b>{cashOpen?'abierta':'cerrada'}</b></button></div>{!cashOpen&&<button className="notice" onClick={()=>setActive('Caja')}>⚡ Abre la caja demo para habilitar el cobro <ChevronRight size={16}/></button>}
+ <section className="pos-grid"><div className="catalog card"><div className="search-box large"><Barcode size={21}/><input autoFocus value={term} onChange={e=>setTerm(e.target.value)} placeholder="Escanea o busca por nombre o código..."/><kbd>⌘ K</kbd></div><div className="chips">{SECTIONS.map(s=><button className={section===s?'chip selected':'chip'} key={s} onClick={()=>setSection(s)}>{s}</button>)}</div><div className="products">{filtered.map(p=><button className="product" key={p.id} onClick={()=>add(p)}><span className="product-icon"><Package size={19}/></span><span className="product-info"><b>{p.name}</b><small>{p.section} · {p.code}</small></span><strong>{money(p.price)}</strong><Plus size={18}/></button>)}{!filtered.length&&<div className="empty"><Search size={30}/><b>No encontramos ese producto</b><span>Prueba con otro nombre o código.</span></div>}</div></div>
+ <aside className="cart card"><div className="cart-head"><div><span className="eyebrow">TICKET ACTUAL</span><h2>Carrito</h2></div><span className="count">{cart.reduce((s,i)=>s+i.quantity,0)}</span></div><div className="cart-items">{cart.map(i=><div className="cart-item" key={i.id}><div><b>{i.name}</b><small>{i.quantity} × {money(i.price)}</small></div><strong>{money(i.quantity*i.price)}</strong><button onClick={()=>remove(i.id)} aria-label="Quitar">×</button></div>)}{!cart.length&&<div className="cart-empty"><ShoppingCart size={35}/><b>Tu carrito está vacío</b><span>Selecciona productos para comenzar.</span></div>}</div><div className="totals"><div><span>Subtotal</span><b>{money(total)}</b></div><div className="grand"><span>Total</span><strong>{money(total)}</strong></div></div><button className="pay-button" disabled={!cashOpen||!cart.length} onClick={()=>{setPayments([{method:'EFECTIVO',amount:total.toFixed(2)}]);setPayOpen(true)}}><CreditCard size={20}/> Cobrar {money(total)}</button></aside></section>
+ {tickets.length>0&&<section className="recent card"><div><span className="eyebrow">HISTORIAL DEMO</span><h2>Últimos tickets</h2></div>{tickets.slice(0,3).map(t=><div className="ticket-row" key={t.folio}><span><b>{t.folio}</b><small>{t.items.length} producto(s) · {t.payments.map(p=>p.method).join(' + ')}</small></span><strong>{money(t.total)}</strong><button className="secondary small" onClick={()=>print(t)}><Printer size={15}/> Reimprimir</button></div>)}</section>}</>}
+ </div></section>
+ {payOpen&&<div className="overlay"><div className="payment-modal"><button className="close" onClick={()=>setPayOpen(false)}><X/></button><span className="eyebrow">COBRO DEMO</span><h2>¿Cómo paga el cliente?</h2><div className="modal-total">{money(total)}</div><div className="payment-list">{payments.map((p,idx)=><div className="payment-line" key={idx}><select value={p.method} onChange={e=>setPayment(idx,'method',e.target.value)}><option>EFECTIVO</option><option>TARJETA</option><option>TRANSFERENCIA</option></select><input type="number" min="0" step="0.01" placeholder="Importe" value={p.amount} onChange={e=>setPayment(idx,'amount',e.target.value)}/></div>)}</div><button className="link-button" onClick={addPayment}>+ Agregar otro método · Pago mixto</button><div className="payment-summary"><span>Pagado <b>{money(paid)}</b></span><span>Falta <b>{money(Math.max(0,total-paid))}</b></span>{change>0&&<span className="change">Cambio <b>{money(change)}</b></span>}</div>{mixed&&<div className="mixed-badge"><CheckCircle2 size={16}/> Pago mixto</div>}<button className="pay-button" disabled={paid<total} onClick={confirm}>Confirmar cobro · {money(total)}</button></div></div>}
+ <style jsx>{styles}</style></main>;
 }
+
+function Dashboard({tickets,cashOpen,onStart}:{tickets:Ticket[];cashOpen:boolean;onStart:()=>void}){const sales=tickets.reduce((s,t)=>s+t.total,0);return <><div className="welcome"><div><span className="eyebrow">PANEL DEMO</span><h1>Todo listo para mostrar</h1><p>Una vista rápida del sistema y del flujo de caja.</p></div><button className="primary" onClick={onStart}><Wallet size={17}/> {cashOpen?'Ver caja':'Abrir caja'}</button></div><div className="metrics"><div className="metric"><span>Ventas demo</span><strong>{money(1248.5+sales)}</strong><small>↑ Operaciones simuladas</small></div><div className="metric"><span>Tickets</span><strong>{18+tickets.length}</strong><small>Historial de demostración</small></div><div className="metric"><span>Inventario bajo</span><strong>3</strong><small>Para mostrar alertas</small></div><div className="metric"><span>Secciones</span><strong>6</strong><small>Operación completa</small></div></div><div className="demo-flow card"><span className="eyebrow">RECORRIDO SUGERIDO</span><h2>Enséñale al cliente en 5 minutos</h2><div className="flow">{['Abrir caja','Buscar producto','Cobrar','Imprimir ticket','Cerrar caja'].map((x,i)=><div className="flow-step" key={x}><span>{i+1}</span><b>{x}</b></div>)}</div></div></>}
+function Inventory({term,setTerm}:{term:string;setTerm:(v:string)=>void}){return <><div className="welcome"><div><span className="eyebrow">CONTROL</span><h1>Inventario demo</h1><p>Catálogo ficticio para explorar productos y existencias.</p></div></div><div className="card inventory-card"><div className="search-box large"><Search size={19}/><input value={term} onChange={e=>setTerm(e.target.value)} placeholder="Buscar producto o código..."/></div>{PRODUCTS.filter(p=>`${p.name} ${p.code}`.toLowerCase().includes(term.toLowerCase())).map(p=><div className="inventory-row" key={p.id}><span className="product-icon"><Package size={18}/></span><div><b>{p.name}</b><small>{p.section} · {p.code}</small></div><strong>{money(p.price)}</strong><span className="stock">Stock {p.stock}</span></div>)}</div></>}
+
+const styles=`:global(*){box-sizing:border-box}:global(body){margin:0;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#f5f6f8;color:#111827}:global(button),:global(input),:global(select){font:inherit}:global(button){cursor:pointer}.demo-app{min-height:100vh;display:flex}.sidebar{width:252px;background:#111827;color:#fff;padding:20px 14px;display:flex;flex-direction:column;gap:22px;min-height:100vh}.brand{display:flex;align-items:center;gap:11px;padding:5px 7px}.brand-icon,.logo{display:grid;place-items:center;background:#facc15;color:#111827;font-weight:950;border-radius:14px}.brand-icon{width:42px;height:42px}.brand b{display:block}.brand small{display:block;color:#94a3b8;font-size:10px;letter-spacing:2px;margin-top:2px}.demo-pill{background:#7c2d12;color:#fed7aa;border:1px solid #9a3412;border-radius:9px;padding:9px 10px;text-align:center;font-size:10px;font-weight:900;letter-spacing:.7px}.sidebar nav{display:grid;gap:5px}.nav{display:flex;align-items:center;gap:11px;border:0;background:transparent;color:#cbd5e1;padding:12px;border-radius:10px;text-align:left}.nav:hover,.nav.active{background:#1f2937;color:#fff}.nav-arrow{margin-left:auto;opacity:.35}.sidebar-foot{margin-top:auto}.cash-mini{display:flex;justify-content:space-between;align-items:center;padding:11px 12px;background:#172033;border-radius:10px;font-size:12px;margin-bottom:7px}.cash-mini b{color:#86efac}.logout{width:100%}.content{flex:1;min-width:0}.topbar{height:78px;background:#fff;border-bottom:1px solid #e5e7eb;padding:0 34px;display:flex;align-items:center;justify-content:space-between}.eyebrow{display:block;font-size:10px;font-weight:900;letter-spacing:1.6px;color:#9a3412;margin-bottom:4px}.topbar h2{margin:0;font-size:18px}.top-actions{display:flex;align-items:center;gap:12px}.safe{display:inline-flex;gap:6px;align-items:center;color:#166534;background:#dcfce7;border-radius:999px;padding:7px 10px;font-size:11px;font-weight:900}.user-chip{color:#6b7280;font-size:12px}.main{max-width:1480px;margin:auto;padding:30px 34px}.welcome{display:flex;justify-content:space-between;align-items:center;gap:20px;margin-bottom:22px}.welcome h1{font-size:30px;margin:0 0 4px;letter-spacing:-.7px}.welcome p{margin:0;color:#6b7280}.primary,.secondary,.pay-button{display:inline-flex;align-items:center;justify-content:center;gap:8px;border-radius:10px;font-weight:800;padding:12px 16px;border:1px solid transparent}.primary{background:#111827;color:#fff}.primary:hover{background:#1f2937}.secondary{background:#fff;border-color:#d1d5db;color:#111827}.pay-button{width:100%;background:#16a34a;color:#fff;font-size:15px}.pay-button:disabled{opacity:.4;cursor:not-allowed}.cash-state{display:flex;align-items:center;gap:8px;background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:10px 13px;color:#374151}.cash-state b{color:#166534}.notice{width:100%;display:flex;align-items:center;justify-content:space-between;border:1px solid #fed7aa;background:#fff7ed;color:#9a3412;padding:12px 14px;border-radius:11px;margin-bottom:18px;font-weight:700}.card,.metric,.demo-flow{background:#fff;border:1px solid #e5e7eb;border-radius:16px;box-shadow:0 5px 22px #11182708}.pos-grid{display:grid;grid-template-columns:minmax(0,1fr) 350px;gap:18px}.catalog{padding:20px}.search-box{display:flex;align-items:center;gap:9px;border:1px solid #d8dee8;border-radius:11px;padding:5px 10px;background:#fff}.search-box.large{padding:6px 11px}.search-box input{border:0;outline:0;flex:1;padding:10px 4px;background:transparent}.search-box kbd{background:#f3f4f6;border:1px solid #e5e7eb;border-radius:6px;padding:3px 7px;font-size:10px;color:#6b7280}.chips{display:flex;gap:7px;overflow:auto;padding:15px 0}.chip{white-space:nowrap;border:1px solid #e5e7eb;background:#fff;border-radius:999px;padding:8px 11px;font-size:11px;font-weight:800}.chip.selected{background:#111827;color:#fff;border-color:#111827}.products{display:grid;gap:7px}.product{display:grid;grid-template-columns:40px 1fr auto 18px;align-items:center;gap:11px;width:100%;border:1px solid #e8ebf0;background:#fff;border-radius:11px;padding:11px;text-align:left}.product:hover{border-color:#c2410c;background:#fffaf7}.product-icon{width:38px;height:38px;border-radius:10px;background:#fff7ed;color:#c2410c;display:grid;place-items:center}.product-info b,.product-info small{display:block}.product-info small,.inventory-row small,.cart-item small{color:#6b7280;font-size:11px;margin-top:3px}.product>strong{font-size:14px}.cart{padding:20px;display:flex;flex-direction:column;min-height:500px}.cart-head{display:flex;justify-content:space-between;align-items:center}.cart-head h2{margin:0;font-size:21px}.count{width:28px;height:28px;display:grid;place-items:center;background:#111827;color:#fff;border-radius:50%;font-size:12px;font-weight:900}.cart-items{flex:1}.cart-item{display:grid;grid-template-columns:1fr auto 25px;gap:8px;align-items:center;padding:12px 0;border-bottom:1px solid #f0f0f0}.cart-item b,.cart-item small{display:block}.cart-item button{border:0;background:#f3f4f6;border-radius:7px;width:25px;height:25px}.cart-empty{height:250px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;color:#9ca3af;gap:7px}.cart-empty b{color:#374151}.totals{padding-top:10px}.totals>div{display:flex;justify-content:space-between;padding:7px 0;color:#6b7280}.totals .grand{font-size:20px;color:#111827;border-top:1px solid #eee;margin-top:4px;padding-top:13px}.recent{margin-top:18px;padding:20px}.recent h2,.demo-flow h2{margin:0}.ticket-row{display:grid;grid-template-columns:1fr auto auto;gap:15px;align-items:center;padding:12px 0;border-top:1px solid #eee;margin-top:10px}.ticket-row b,.ticket-row small{display:block}.ticket-row small{color:#6b7280;margin-top:3px}.small{padding:8px 10px;font-size:11px}.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}.metric{padding:19px}.metric span,.metric small{display:block;color:#6b7280;font-size:12px}.metric strong{display:block;font-size:25px;margin:8px 0 4px}.metric small{color:#15803d}.demo-flow{margin-top:18px;padding:22px}.flow{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-top:18px}.flow-step{border:1px solid #eee;border-radius:11px;padding:14px}.flow-step span{display:grid;place-items:center;width:25px;height:25px;border-radius:50%;background:#111827;color:#fff;font-size:11px;margin-bottom:9px}.single-card{max-width:700px;background:#fff;border:1px solid #e5e7eb;border-radius:18px;padding:30px;display:grid;gap:14px}.single-card h1{margin:0;font-size:27px}.single-card p{color:#6b7280;margin:0 0 8px}.single-card label{display:grid;gap:7px;font-weight:800}.single-card input{border:1px solid #d1d5db;border-radius:10px;padding:12px}.hero-icon{width:50px;height:50px;display:grid;place-items:center;border-radius:14px;background:#fff7ed;color:#c2410c}.success-box{display:flex;align-items:center;gap:9px;background:#f0fdf4;border:1px solid #bbf7d0;color:#166534;border-radius:10px;padding:12px;font-weight:700}.inventory-card{padding:20px}.inventory-row{display:grid;grid-template-columns:40px 1fr auto auto;gap:13px;align-items:center;padding:13px 0;border-bottom:1px solid #eee}.stock{font-size:11px;background:#f3f4f6;padding:6px 8px;border-radius:7px}.overlay{position:fixed;inset:0;background:#11182766;display:grid;place-items:center;padding:18px;z-index:20}.payment-modal{position:relative;width:min(520px,100%);background:#fff;border-radius:20px;padding:28px;box-shadow:0 25px 80px #0003}.payment-modal h2{margin:0 0 5px}.close{position:absolute;right:15px;top:15px;border:0;background:#f3f4f6;border-radius:9px;padding:7px}.modal-total{font-size:34px;font-weight:950;margin:10px 0 20px}.payment-list{display:grid;gap:9px}.payment-line{display:grid;grid-template-columns:1fr 1fr;gap:8px}.payment-line select,.payment-line input{border:1px solid #d1d5db;border-radius:9px;padding:11px;background:#fff}.link-button{border:0;background:none;color:#c2410c;font-weight:800;padding:10px 0;text-align:left}.payment-summary{background:#f9fafb;border-radius:11px;padding:12px;display:grid;gap:5px;color:#6b7280}.payment-summary span{display:flex;justify-content:space-between}.payment-summary b{color:#111827}.payment-summary .change{color:#166534;font-size:18px}.mixed-badge{display:inline-flex;gap:6px;align-items:center;background:#eff6ff;color:#1d4ed8;padding:7px 9px;border-radius:8px;font-size:11px;font-weight:800;margin:10px 0}.demo-login{min-height:100vh;display:grid;place-items:center;padding:22px;background:radial-gradient(circle at 20% 0,#fff7ed 0,#f5f6f8 45%,#eef2f7 100%)}.login-card{width:min(460px,100%);background:#fff;border:1px solid #e5e7eb;border-radius:24px;padding:34px;box-shadow:0 25px 80px #11182712;display:grid;gap:16px;text-align:center}.demo-badge{justify-self:center;display:inline-flex;align-items:center;gap:6px;background:#fff7ed;color:#9a3412;border-radius:999px;padding:7px 11px;font-size:10px;font-weight:900;letter-spacing:.5px}.logo{width:58px;height:58px;margin:3px auto 0;font-size:20px}.login-card h1{margin:0;font-size:28px}.login-card h1 span{color:#c2410c}.login-card p,.login-card small{color:#6b7280}.login-fields{display:grid;gap:11px;text-align:left}.login-fields label{display:grid;gap:6px;font-weight:800;font-size:12px}.login-fields input{border:1px solid #d1d5db;border-radius:10px;padding:12px}.big{padding:14px}.empty{padding:50px;text-align:center;color:#9ca3af;display:grid;place-items:center;gap:7px}@media(max-width:1050px){.sidebar{width:78px}.brand div:last-child,.demo-pill,.nav:not(.active) .nav-arrow{display:none}.brand{justify-content:center}.nav{justify-content:center;font-size:0}.nav svg{font-size:initial}.pos-grid{grid-template-columns:1fr}.cart{min-height:400px}.metrics{grid-template-columns:repeat(2,1fr)}}@media(max-width:650px){.sidebar{display:none}.topbar{padding:0 16px}.user-chip{display:none}.main{padding:18px}.welcome{align-items:flex-start}.metrics{grid-template-columns:1fr 1fr}.flow{grid-template-columns:1fr 1fr}.inventory-row{grid-template-columns:40px 1fr auto}.inventory-row .stock{grid-column:2}.payment-line{grid-template-columns:1fr}.ticket-row{grid-template-columns:1fr auto}.ticket-row .secondary{grid-column:1/-1}.login-card{padding:25px}.welcome h1{font-size:25px}}`;
