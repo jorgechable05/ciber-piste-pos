@@ -15,9 +15,9 @@ test.describe('CIBER PISTE POS - DEMO aislada', () => {
     await expect(page.getByText('ENTORNO DE PRUEBA')).toBeVisible();
 
     await page.getByRole('button', { name: /Caja cerrada/i }).click();
-    await expect(page.getByText('Abre tu caja demo')).toBeVisible();
+    await expect(page.getByRole('heading', { name: /Caja cerrada/i })).toBeVisible();
     await page.getByRole('button', { name: /Abrir caja de prueba/i }).click();
-    await expect(page.getByText(/Caja abierta/i)).toBeVisible();
+    await expect(page.getByRole('heading', { name: /Caja abierta/i })).toBeVisible();
 
     await page.getByRole('button', { name: /^POS/ }).click();
     await expect(page.getByText('Listo para cobrar')).toBeVisible();
@@ -30,7 +30,7 @@ test.describe('CIBER PISTE POS - DEMO aislada', () => {
     await page.getByRole('button', { name: /Cobrar \$92\.00/i }).click();
     await expect(page.getByText('¿Cómo paga el cliente?')).toBeVisible();
 
-    const amountInputs = page.locator('.payment-line input[type="number"]');
+    const amountInputs = page.locator('.payment input[type="number"]');
     await expect(amountInputs).toHaveCount(1);
     await amountInputs.first().fill('100');
     await expect(page.getByText('Cambio')).toBeVisible();
@@ -44,10 +44,11 @@ test.describe('CIBER PISTE POS - DEMO aislada', () => {
     await search.fill('Pluma azul punto fino');
     await page.getByRole('button', { name: /Pluma azul punto fino/i }).click();
     await page.getByRole('button', { name: /Cobrar \$12\.00/i }).click();
+    await expect(page.locator('.payment')).toHaveCount(1);
     await amountInputs.first().fill('6');
     await page.getByRole('button', { name: /Agregar otro método/i }).click();
-    await page.locator('.payment-line').nth(1).locator('select').selectOption('TARJETA');
-    await page.locator('.payment-line').nth(1).locator('input').fill('6');
+    await page.locator('.payment').nth(1).locator('select').selectOption('TARJETA');
+    await page.locator('.payment').nth(1).locator('input').fill('6');
     await expect(page.getByText('Pago mixto')).toBeVisible();
     await page.getByRole('button', { name: /Confirmar cobro/i }).click();
     await expect(page.getByText(/DEMO-00002/)).toBeVisible();
@@ -65,8 +66,13 @@ test.describe('CIBER PISTE POS - DEMO aislada', () => {
     // Cierre: el estado debe pasar realmente a CERRADA.
     await page.getByRole('button', { name: /Ver caja/i }).click();
     await page.getByRole('button', { name: /Realizar cierre de prueba/i }).click();
-    await expect(page.getByText('✓ Cierre realizado')).toBeVisible();
+    await expect(page.getByRole('heading', { name: /Caja cerrada/i })).toBeVisible();
     await expect(page.getByText('CERRADA')).toBeVisible();
+
+    // Una caja cerrada no puede cobrar.
+    await page.getByRole('button', { name: /^POS/ }).click();
+    const blockedPay = page.getByRole('button', { name: /Cobrar \$0\.00/i });
+    await expect(blockedPay).toBeDisabled();
 
     expect(supabaseRequests, 'La DEMO no debe contactar Supabase').toEqual([]);
   });
