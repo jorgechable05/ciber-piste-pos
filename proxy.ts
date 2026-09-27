@@ -5,4 +5,6 @@ export async function proxy(request: NextRequest) {
   return updateAuthSession(request);
 }
 
-export const config = { matcher: ['/((?!api|_next/static|_next/image|favicon.ico).*)'] };
+// DEMO must remain completely isolated from authentication/Supabase so it can
+// be shown and tested without production credentials or sessions.
+export const config = { matcher: ['/((?!demo(?:/|$)|api|_next/static|_next/image|favicon.ico).*)'] };
