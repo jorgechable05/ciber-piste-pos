@@ -1,0 +1,48 @@
+name: Demo E2E
+
+on:
+  push:
+    branches:
+      - demo-e2e-test
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  demo-e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build production app
+        run: npm run build
+
+      - name: Install Playwright
+        run: npx -y @playwright/test@1.55.0 install --with-deps chromium
+
+      - name: Start production server
+        run: |
+          npm run start > /tmp/ciber-piste-pos.log 2>&1 &
+          npx -y wait-on@8.0.1 http://127.0.0.1:3000/demo
+
+      - name: Run DEMO E2E
+        run: npx -y @playwright/test@1.55.0 test tests/e2e/demo.spec.js --reporter=line
+
+      - name: Upload server log on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: demo-e2e-server-log
+          path: /tmp/ciber-piste-pos.log
