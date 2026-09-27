@@ -8,7 +8,7 @@ test.describe('CIBER PISTE POS - DEMO aislada', () => {
       if (/supabase\.(co|in)|supabase\.com/i.test(url)) supabaseRequests.push(url);
     });
 
-    await page.goto('/demo');
+    await page.goto('http://127.0.0.1:3000/demo');
     await expect(page.getByText('EXPERIENCIA DEMO AISLADA')).toBeVisible();
 
     await page.getByRole('button', { name: /Entrar a la experiencia/i }).click();
@@ -37,7 +37,7 @@ test.describe('CIBER PISTE POS - DEMO aislada', () => {
 
     await page.getByRole('button', { name: /Reimprimir/i }).click();
 
-    // Segunda venta: pago mixto 60 + 40.
+    // Segunda venta: pago mixto.
     await search.fill('Pluma azul punto fino');
     await page.getByRole('button', { name: /Pluma azul punto fino/i }).click();
     await page.getByRole('button', { name: /Cobrar \$12\.00/i }).click();
