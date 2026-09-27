@@ -33,8 +33,11 @@ jobs:
       - name: Build production app
         run: npm run build
 
-      - name: Install Playwright
-        run: npx -y @playwright/test@1.55.0 install --with-deps chromium
+      - name: Install Playwright test runner (ephemeral)
+        run: npm install --no-save --no-package-lock @playwright/test@1.55.0
+
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
 
       - name: Start production server
         run: |
@@ -42,7 +45,7 @@ jobs:
           npx -y wait-on@8.0.1 http://127.0.0.1:3000/demo
 
       - name: Run DEMO E2E
-        run: npx -y @playwright/test@1.55.0 test tests/e2e/demo.spec.js --reporter=line
+        run: npx playwright test tests/e2e/demo.spec.js --reporter=line
 
       - name: Upload server log on failure
         if: failure()
