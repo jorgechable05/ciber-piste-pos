@@ -3,7 +3,11 @@ name: Demo E2E
 on:
   push:
     branches:
+      - main
       - demo-e2e-test
+  pull_request:
+    branches:
+      - main
   workflow_dispatch:
 
 permissions:
