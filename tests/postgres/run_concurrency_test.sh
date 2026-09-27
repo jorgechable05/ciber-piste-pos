@@ -167,14 +167,14 @@ TRUNCATE sale_payments, sale_details, inventory_movements, sales RESTART IDENTIT
 UPDATE inventory SET stock_actual = 1 WHERE producto_id IN (1,2);
 SELECT create_pos_sale_test('66666666-6666-6666-6666-666666666666', '[{"producto_id":1,"cantidad":1},{"producto_id":2,"cantidad":1}]'::jsonb, '[{"metodo":"EFECTIVO","monto":125}]'::jsonb);
 DO $$
-DECLARE s1 numeric; s2 numeric; m bigint; d bigint; total numeric;
+DECLARE s1 numeric; s2 numeric; m bigint; d bigint; sale_total numeric;
 BEGIN
   SELECT stock_actual INTO s1 FROM inventory WHERE producto_id=1;
   SELECT stock_actual INTO s2 FROM inventory WHERE producto_id=2;
   SELECT count(*) INTO m FROM inventory_movements WHERE tipo='VENTA';
   SELECT count(*) INTO d FROM sale_details;
-  SELECT total INTO total FROM sales LIMIT 1;
-  IF s1<>0 OR s2<>0 OR m<>2 OR d<>2 OR total<>125 THEN RAISE EXCEPTION 'TWO_PRODUCT_FAIL'; END IF;
+  SELECT s.total INTO sale_total FROM sales AS s LIMIT 1;
+  IF s1<>0 OR s2<>0 OR m<>2 OR d<>2 OR sale_total<>125 THEN RAISE EXCEPTION 'TWO_PRODUCT_FAIL'; END IF;
 END $$;
 SQL
 echo 'PASS: two-product atomic sale kept inventory and detail rows consistent.'
