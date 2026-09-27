@@ -48,6 +48,9 @@ else
   exit 1
 fi
 
+# Compare stock numerically instead of comparing its text representation.
+# PostgreSQL may return numeric values such as 0.000, while the invariant is simply stock = 0.
+STOCK_OK=$(psql -At -v ON_ERROR_STOP=1 -c "select case when stock_actual = 0 then '1' else '0' end from inventory where producto_id=1")
 STOCK=$(psql -At -v ON_ERROR_STOP=1 -c "select stock_actual::text from inventory where producto_id=1")
 SALES=$(psql -At -v ON_ERROR_STOP=1 -c "select count(*) from sales")
 MOVES=$(psql -At -v ON_ERROR_STOP=1 -c "select count(*) from inventory_movements where producto_id=1 and tipo='VENTA'")
@@ -55,7 +58,7 @@ PAYMENTS=$(psql -At -v ON_ERROR_STOP=1 -c "select count(*) from sale_payments")
 
 printf '\n--- INTEGRIDAD CONCURRENCIA ---\n'
 printf 'stock=%s\nsales=%s\ninventory_sale_movements=%s\npayments=%s\n' "$STOCK" "$SALES" "$MOVES" "$PAYMENTS"
-[[ "$STOCK" == '0' ]] || { echo 'FAIL: expected stock 0'; exit 1; }
+[[ "$STOCK_OK" == '1' ]] || { echo 'FAIL: expected stock 0'; exit 1; }
 [[ "$SALES" == '1' ]] || { echo 'FAIL: expected 1 sale'; exit 1; }
 [[ "$MOVES" == '1' ]] || { echo 'FAIL: expected 1 inventory movement'; exit 1; }
 [[ "$PAYMENTS" == '1' ]] || { echo 'FAIL: expected 1 payment'; exit 1; }
