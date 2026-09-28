@@ -3,14 +3,12 @@ import { createServerClient } from '@supabase/ssr';
 
 export const dynamic = 'force-dynamic';
 
-const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_PUBLISHABLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+// CIBER PISTE POS: the Supabase publishable key is safe for public/browser use.
+// The deployment can still override these values with Vercel environment variables.
+const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://yuthqwuvzftrxnamwjcr.supabase.co';
+const supabaseKey = process.env.SUPABASE_PUBLISHABLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || 'sb_publishable_S8KDAN4sNafGoTMVpou_Ng_Ok5Iqmjs';
 
 export async function POST(request: Request) {
-  if (!supabaseUrl || !supabaseKey) {
-    return NextResponse.json({ error: 'Configuración de Supabase no disponible en Vercel.' }, { status: 503 });
-  }
-
   const body = await request.json().catch(() => null) as { email?: string; password?: string } | null;
   const email = body?.email?.trim();
   const password = body?.password;
