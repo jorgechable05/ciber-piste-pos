@@ -49,7 +49,7 @@ test.describe('CIBER PISTE POS - DEMO aislada', () => {
     await page.getByRole('button', { name: /Agregar otro método/i }).click();
     await page.locator('.payment').nth(1).locator('select').selectOption('TARJETA');
     await page.locator('.payment').nth(1).locator('input').fill('6');
-    await expect(page.getByText('Pago mixto')).toBeVisible();
+    await expect(page.locator('.mixed')).toHaveText('✓ Pago mixto');
     await page.getByRole('button', { name: /Confirmar cobro/i }).click();
     await expect(page.getByText(/DEMO-00002/)).toBeVisible();
 
