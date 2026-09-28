@@ -67,7 +67,7 @@ test.describe('CIBER PISTE POS - DEMO aislada', () => {
     await page.getByRole('button', { name: /Ver caja/i }).click();
     await page.getByRole('button', { name: /Realizar cierre de prueba/i }).click();
     await expect(page.getByRole('heading', { name: /Caja cerrada/i })).toBeVisible();
-    await expect(page.getByText('CERRADA')).toBeVisible();
+    await expect(page.getByText('CERRADA', { exact: true })).toBeVisible();
 
     // Una caja cerrada no puede cobrar.
     await page.getByRole('button', { name: /^POS/ }).click();
