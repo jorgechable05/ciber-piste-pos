@@ -55,7 +55,7 @@ test.describe('CIBER PISTE POS - DEMO aislada', () => {
 
     // Devolución DEMO.
     await page.getByRole('button', { name: /^Devoluciones/ }).click();
-    await expect(page.getByText('Devoluciones demo')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Devoluciones demo' })).toBeVisible();
     await page.getByRole('button', { name: /Simular devolución/i }).click();
     await expect(page.getByText(/devolución simulada correctamente/i)).toBeVisible();
 
