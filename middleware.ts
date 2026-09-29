@@ -1,19 +1,19 @@
 import { createServerClient } from '@supabase/ssr';
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://yuthqwuvzftrxnamwjcr.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY = process.env.SUPABASE_PUBLISHABLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || 'sb_publishable_S8KDAN4sNafGoTMVpou_Ng_Ok5Iqmjs';
 
 const PUBLIC_PATHS = ['/login'];
 
-export async function middleware(request: Request & { cookies: { getAll: () => { name: string; value: string }[]; set: (name: string, value: string, options?: Record<string, unknown>) => void }) {
+export async function middleware(request: NextRequest) {
   let response = NextResponse.next({ request });
 
   const supabase = createServerClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
     cookies: {
       getAll: () => request.cookies.getAll(),
       setAll: (cookies) => {
-        cookies.forEach(({ name, value, options }) => request.cookies.set(name, value));
+        cookies.forEach(({ name, value }) => request.cookies.set(name, value));
         response = NextResponse.next({ request });
         cookies.forEach(({ name, value, options }) => response.cookies.set(name, value, options));
       },
@@ -21,7 +21,7 @@ export async function middleware(request: Request & { cookies: { getAll: () => {
   });
 
   const { data: { user } } = await supabase.auth.getUser();
-  const url = new URL(request.url);
+  const url = request.nextUrl.clone();
   const isPublic = PUBLIC_PATHS.includes(url.pathname) || url.pathname.startsWith('/api/auth/');
 
   if (!user && !isPublic) {
